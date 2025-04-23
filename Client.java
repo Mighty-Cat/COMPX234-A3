@@ -15,7 +15,7 @@ public class Client extends Thread{
     @Override
     public void run() {
         try {
-            socket = new Socket(hostname, port);
+            socket = new Socket(hostName, port);
             System.out.println("Connected to server");
         } catch (Exception e) {
             e.printStackTrace();

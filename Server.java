@@ -12,6 +12,7 @@ public class Server extends Thread{
     private static int errorCount = 0;
     private static int clientCount = 0;
     private static Map<String, String> tupleSpace = new HashMap<>();//A key-value pair mapping relationship,a global variable that holds key-value pairs 
+    private String Response;//It is used to record the response output by the server to the client
 
     @Override
     public void run() {
@@ -58,10 +59,42 @@ public class Server extends Thread{
         if(tupleSpace.containsKey(k)){
             v = tupleSpace.get(k);
             readCount++;
+            Response = String.format("RAED %s: OK (%s, %s) read",k, k, v);
         }else{
             v = null;
             errorCount++;
+            Response = String.format("READ %s:ERR (%s) does not exist",k, k);
         }
         return v;
     }
+
+    public String Get(String k){
+        String v;
+        if(tupleSpace.containsKey(k)){
+            v = tupleSpace.remove(k);
+            getCount++;
+            Response = String.format("GET %s: OK (%s, %s) removed",k, k, v);
+        }else{
+            v = null;
+            errorCount++;
+            Response = String.format("GET %s: ERR (%s) does not exist",k, k);
+        }
+        return v;
+    }
+
+    public int Put(String k, String v){
+        int e;
+        if(tupleSpace.containsKey(k)){
+            e = 1;
+            errorCount++;
+            Response = String.format("PUT %s: ERR (%s) already exists",k, k);
+        }else{
+            e = 0;
+            tupleSpace.put(k, v);
+            putCount++;
+            Response = String.format("PUT %s: OK (%s, %s) added",k, k, v);
+        }
+        return e;
+    }
+        
 }
