@@ -1,6 +1,8 @@
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Stream;
 
 public class Client extends Thread{
@@ -25,14 +27,14 @@ public class Client extends Thread{
         }
     }
 
-    public String obtainRequest(String requestFilePath){
-        String request = "";     
+    public List<String> obtainRequest(String requestFilePath){
+        List<String> request = new ArrayList<>();
         try (Stream<String> lines = Files.lines(Paths.get(requestFilePath))) {
             lines.forEach(line -> {
                 line = line.trim();
                     if (!line.isEmpty()) {
                         String[] massages = line.split(" ");               
-                        if (massages[0] == "PUT") {
+                        if ("PUT".equals(massages[0])) {
                             String value = String.join(" ", java.util.Arrays.copyOfRange(massages, 2, massages.length));//Get the value of the request
                             //Check if the length of the value is less than or equal to 970
                             if (massages[1].length() + value.length() > 970) {
@@ -40,13 +42,13 @@ public class Client extends Thread{
                                 return;
                             }
                             String lengthCode = String.format("%03d", String.format("000 P %s %s", massages[1], value).length());//Get the length of the request
-                            request = String.format("%s P %s %s",lengthCode, massages[1], value);
-                        } else if (massages[0] == "READ") {
+                            request.add(String.format("%s P %s %s", lengthCode, massages[1], value));
+                        } else if ("READ".equals(massages[0])) {
                             String lengthCode = String.format("%03d", String.format("000 R %s", massages[1]).length());
-                            request = String.format("%s R %s", lengthCode, massages[1]);
-                        } else if (massages[0] == "GET") {
+                            request.add(String.format("%s R %s", lengthCode, massages[1]));
+                        } else if ("GET".equals(massages[0])) {
                             String lengthCode = String.format("%03d", String.format("000 G %s", massages[1]).length());
-                            request = String.format("%s G %s", lengthCode, massages[1]);
+                            request.add(String.format("%s G %s", lengthCode, massages[1]));
                         } else {
                             System.out.printf("Error: Invalid command in line: %s%n", line);
                             return;
