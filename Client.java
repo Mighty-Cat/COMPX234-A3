@@ -1,3 +1,6 @@
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -17,15 +20,30 @@ public class Client{
         this.filePath = filePath;
     }
 
-    public void main(String[] args){
+    public void main(String[] args) {
         try {
             socket = new Socket(hostName, port);
             System.out.println("Connected to server");
+
+            List<String> requests = obtainRequest(filePath);
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+            for (String request : requests) {
+                out.println(request);
+                String response = in.readLine();
+                System.out.println(request + ": " + response);
+            }
+
+            out.close();
+            in.close();
+            socket.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+    //Obtain the request from the request file
     public List<String> obtainRequest(String requestFilePath){
         List<String> request = new ArrayList<>();
         try (Stream<String> lines = Files.lines(Paths.get(requestFilePath))) {

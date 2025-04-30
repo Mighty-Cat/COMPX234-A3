@@ -1,3 +1,9 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,9 +21,11 @@ public class Server{
     private static Map<String, String> tupleSpace = new HashMap<>();//A key-value pair mapping relationship,a global variable that holds key-value pairs 
     private String Response;//It is used to record the response output by the server to the client
 
-    public void main(String[] args) {
-        // Start the periodic printing thread
-         new Thread(() -> {
+     public void main(String[] args) {
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            System.out.println("Server is listening on port " + PORT);
+
+            new Thread(() -> {
                 while (true) {
                     try {
                         Thread.sleep(PTINT_INTERVAL);
@@ -27,6 +35,15 @@ public class Server{
                     }
                 }
             }).start();
+
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                clientCount++;
+                new Thread(() -> handleClient(clientSocket)).start();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
     
     public void print() {
@@ -96,5 +113,41 @@ public class Server{
         }
         return e;
     }
-        
+
+    // This method handles the client request and sends the response back to the client
+    private void handleClient(Socket clientSocket) {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
+            String request;
+            while ((request = in.readLine()) != null) {
+                operationCount++;
+                String command = request.substring(3, 4);
+                String key = request.substring(5, request.contains(" ") ? request.indexOf(" ") : request.length());
+                String value = request.contains(" ") && command.equals("P")? request.substring(request.indexOf(" ") + 1) : "";
+
+                switch (command) {
+                    case "R":
+                        String readValue = Read(key);
+                        out.println(readValue != null? String.format("0%d OK (%s, %s) read", ("OK (" + key + ", " + readValue + ") read").length(), key, readValue) : "024 ERR " + key + " does not exist");
+                        break;
+                    case "G":
+                        String getValue = Get(key);
+                        out.println(getValue != null? String.format("0%d OK (%s, %s) removed", ("OK (" + key + ", " + getValue + ") removed").length(), key, getValue) : "024 ERR " + key + " does not exist");
+                        break;
+                    case "P":
+                        int putResult = Put(key, value);
+                        out.println(putResult == 0? String.format("0%d OK (%s, %s) added", ("OK (" + key + ", " + value + ") added").length(), key, value) : "024 ERR " + key + " already exists");
+                        break;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                clientSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }    
 }
