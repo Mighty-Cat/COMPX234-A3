@@ -8,9 +8,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
-public class Client{
+public class Client {
     private static Socket socket;
-    private static int port = 0;
+    private static int port;
     private static String hostName = "localhost";
     private static String filePath = "";
 

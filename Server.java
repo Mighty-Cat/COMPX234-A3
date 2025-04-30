@@ -21,7 +21,7 @@ public class Server{
     private static Map<String, String> tupleSpace = new HashMap<>();//A key-value pair mapping relationship,a global variable that holds key-value pairs 
     private String Response;//It is used to record the response output by the server to the client
 
-     public void main(String[] args) {
+     public void start(){
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             System.out.println("Server is listening on port " + PORT);
 
