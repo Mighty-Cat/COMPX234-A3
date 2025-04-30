@@ -1,7 +1,7 @@
 import java.util.HashMap;
 import java.util.Map;
 
-public class Server extends Thread{
+public class Server{
     private static final int PORT = 50000;
     private static final long PTINT_INTERVAL = 10000;// 10 seconds
     private static int tupleCount = 0;
@@ -11,11 +11,11 @@ public class Server extends Thread{
     private static int putCount = 0;
     private static int errorCount = 0;
     private static int clientCount = 0;
+
     private static Map<String, String> tupleSpace = new HashMap<>();//A key-value pair mapping relationship,a global variable that holds key-value pairs 
     private String Response;//It is used to record the response output by the server to the client
 
-    @Override
-    public void run() {
+    public void main(String[] args) {
         // Start the periodic printing thread
          new Thread(() -> {
                 while (true) {

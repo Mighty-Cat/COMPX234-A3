@@ -5,11 +5,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
-public class Client extends Thread{
-    private Socket socket;
-    private int port = 0;
-    private String hostName = "localhost";
-    private String filePath = "";
+public class Client{
+    private static Socket socket;
+    private static int port = 0;
+    private static String hostName = "localhost";
+    private static String filePath = "";
 
     public Client(String hostName, int port, String filePath) {
         this.hostName = hostName;
@@ -17,8 +17,7 @@ public class Client extends Thread{
         this.filePath = filePath;
     }
 
-    @Override
-    public void run() {
+    public void main(String[] args){
         try {
             socket = new Socket(hostName, port);
             System.out.println("Connected to server");
