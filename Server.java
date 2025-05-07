@@ -7,9 +7,12 @@ import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Server{
+/**
+ * Server class that implements a multi-threaded tuple space with READ, GET, and PUT operations.
+ */
+public class Server {
     private static final int PORT = 50000;
-    private static final long PTINT_INTERVAL = 10000;// 10 seconds
+    private static final long PRINT_INTERVAL = 10000; // 10 seconds
     private static int tupleCount = 0;
     private static int operationCount = 0;
     private static int readCount = 0;
@@ -18,127 +21,172 @@ public class Server{
     private static int errorCount = 0;
     private static int clientCount = 0;
 
-    private static Map<String, String> tupleSpace = new HashMap<>();//A key-value pair mapping relationship,a global variable that holds key-value pairs 
-    private String Response;//It is used to record the response output by the server to the client
+    private static final Map<String, String> tupleSpace = new HashMap<>();
 
-     public void start(){
+    /**
+     * Starts the server, listening for client connections and spawning threads to handle them.
+     */
+    public void start() {
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             System.out.println("Server is listening on port " + PORT);
 
+            // Start a thread to print statistics every 10 seconds
             new Thread(() -> {
                 while (true) {
                     try {
-                        Thread.sleep(PTINT_INTERVAL);
-                        print();
+                        Thread.sleep(PRINT_INTERVAL);
+                        printStatistics();
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
             }).start();
 
+            // Accept client connections
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                clientCount++;
+                synchronized (this) {
+                    clientCount++;
+                }
                 new Thread(() -> handleClient(clientSocket)).start();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-    
-    public void print() {
-        int totalSize = 0,keySize = 0,valueSize = 0;
-        // Calculate the total size, key size, and value size of all tuples in the tuple space
-         for (Map.Entry<String, String> _tuple : tupleSpace.entrySet()) {
-            totalSize += _tuple.getKey().length() + _tuple.getValue().length();
-            keySize += _tuple.getKey().length();
-            valueSize += _tuple.getValue().length();
+
+    /**
+     * Prints statistics about the tuple space and server operations.
+     */
+    private void printStatistics() {
+        synchronized (tupleSpace) {
+            int totalSize = 0, keySize = 0, valueSize = 0;
+            for (Map.Entry<String, String> tuple : tupleSpace.entrySet()) {
+                totalSize += tuple.getKey().length() + tuple.getValue().length();
+                keySize += tuple.getKey().length();
+                valueSize += tuple.getValue().length();
+            }
+            double avgTupleSize = tupleSpace.isEmpty() ? 0 : (double) totalSize / tupleSpace.size();
+            double avgKeySize = tupleSpace.isEmpty() ? 0 : (double) keySize / tupleSpace.size();
+            double avgValueSize = tupleSpace.isEmpty() ? 0 : (double) valueSize / tupleSpace.size();
+
+            System.out.println("Average tuple size: " + avgTupleSize);
+            System.out.println("Average key size: " + avgKeySize);
+            System.out.println("Average value size: " + avgValueSize);
+            System.out.println("Total clients: " + clientCount);
+            System.out.println("Total operations: " + operationCount);
+            System.out.println("READ operations: " + readCount);
+            System.out.println("GET operations: " + getCount);
+            System.out.println("PUT operations: " + putCount);
+            System.out.println("Error count: " + errorCount);
         }
-        // Calculate the average tuple size, key size, and value size
-        double avgTupleSize = tupleSpace.isEmpty() ? 0 : (double) totalSize / tupleSpace.size();//if ture space is empty, return 0
-        double avgKeySize = tupleSpace.isEmpty() ? 0 : (double) keySize / tupleSpace.size();
-        double avgValueSize = tupleSpace.isEmpty() ? 0 : (double) valueSize / tupleSpace.size();
-        // Print the summary
-        System.out.println("Average tuple size: " + avgTupleSize);
-        System.out.println("Average key size: " + avgKeySize);
-        System.out.println("Average value size: " + avgValueSize);
-        System.out.println("Total clients: " + clientCount);
-        System.out.println("Total operations: " + operationCount);
-        System.out.println("READ operations: " + readCount);
-        System.out.println("GET operations: " + getCount);
-        System.out.println("PUT operations: " + putCount);
-        System.out.println("Error count: " + errorCount);
     }
 
-
-    public String Read(String k){
-        String v;
-        if(tupleSpace.containsKey(k)){
-            v = tupleSpace.get(k);
+    /**
+     * Reads the value associated with the key from the tuple space.
+     *
+     * @param key the key to read
+     * @return the value if the key exists, null otherwise
+     */
+    private synchronized String read(String key) {
+        if (tupleSpace.containsKey(key)) {
             readCount++;
-            Response = String.format("RAED %s: OK (%s, %s) read",k, k, v);
-        }else{
-            v = null;
-            errorCount++;
-            Response = String.format("READ %s:ERR (%s) does not exist",k, k);
+            return tupleSpace.get(key);
         }
-        return v;
+        errorCount++;
+        return null;
     }
 
-    public String Get(String k){
-        String v;
-        if(tupleSpace.containsKey(k)){
-            v = tupleSpace.remove(k);
+    /**
+     * Removes and returns the value associated with the key from the tuple space.
+     *
+     * @param key the key to remove
+     * @return the value if the key exists, null otherwise
+     */
+    private synchronized String get(String key) {
+        if (tupleSpace.containsKey(key)) {
             getCount++;
-            Response = String.format("GET %s: OK (%s, %s) removed",k, k, v);
-        }else{
-            v = null;
-            errorCount++;
-            Response = String.format("GET %s: ERR (%s) does not exist",k, k);
+            return tupleSpace.remove(key);
         }
-        return v;
+        errorCount++;
+        return null;
     }
 
-    public int Put(String k, String v){
-        int e;
-        if(tupleSpace.containsKey(k)){
-            e = 1;
+    /**
+     * Adds a key-value pair to the tuple space.
+     *
+     * @param key   the key to add
+     * @param value the value to associate with the key
+     * @return 0 if successful, 1 if the key already exists
+     */
+    private synchronized int put(String key, String value) {
+        if (tupleSpace.containsKey(key)) {
             errorCount++;
-            Response = String.format("PUT %s: ERR (%s) already exists",k, k);
-        }else{
-            e = 0;
-            tupleSpace.put(k, v);
-            putCount++;
-            Response = String.format("PUT %s: OK (%s, %s) added",k, k, v);
+            return 1;
         }
-        return e;
+        tupleSpace.put(key, value);
+        putCount++;
+        return 0;
     }
 
-    // This method handles the client request and sends the response back to the client
+    /**
+     * Handles a client connection, processing requests and sending responses.
+     *
+     * @param clientSocket the socket connected to the client
+     */
     private void handleClient(Socket clientSocket) {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
              PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
             String request;
             while ((request = in.readLine()) != null) {
-                operationCount++;
-                String command = request.substring(3, 4);
-                String key = request.substring(5, request.contains(" ") ? request.indexOf(" ") : request.length());
-                String value = request.contains(" ") && command.equals("P")? request.substring(request.indexOf(" ") + 1) : "";
+                synchronized (this) {
+                    operationCount++;
+                }
+                // Parse request: NNN C k [v]
+                if (request.length() < 4) {
+                    out.println("024 ERR invalid request");
+                    continue;
+                }
+                String lengthCode = request.substring(0, 3);
+                String message = request.substring(3);
+                if (!lengthCode.matches("\\d{3}") || Integer.parseInt(lengthCode) != message.length()) {
+                    out.println("024 ERR invalid length");
+                    continue;
+                }
+                String[] parts = message.split("\\s+", 3);
+                if (parts.length < 2) {
+                    out.println("024 ERR invalid format");
+                    continue;
+                }
+                String command = parts[0];
+                String key = parts[1];
+                String value = parts.length == 3 ? parts[2] : "";
 
+                String response;
                 switch (command) {
                     case "R":
-                        String readValue = Read(key);
-                        out.println(readValue != null? String.format("0%d OK (%s, %s) read", ("OK (" + key + ", " + readValue + ") read").length(), key, readValue) : "024 ERR " + key + " does not exist");
+                        String readValue = read(key);
+                        response = readValue != null
+                                ? String.format("OK (%s, %s) read", key, readValue)
+                                : String.format("ERR %s does not exist", key);
                         break;
                     case "G":
-                        String getValue = Get(key);
-                        out.println(getValue != null? String.format("0%d OK (%s, %s) removed", ("OK (" + key + ", " + getValue + ") removed").length(), key, getValue) : "024 ERR " + key + " does not exist");
+                        String getValue = get(key);
+                        response = getValue != null
+                                ? String.format("OK (%s, %s) removed", key, getValue)
+                                : String.format("ERR %s does not exist", key);
                         break;
                     case "P":
-                        int putResult = Put(key, value);
-                        out.println(putResult == 0? String.format("0%d OK (%s, %s) added", ("OK (" + key + ", " + value + ") added").length(), key, value) : "024 ERR " + key + " already exists");
+                        int putResult = put(key, value);
+                        response = putResult == 0
+                                ? String.format("OK (%s, %s) added", key, value)
+                                : String.format("ERR %s already exists", key);
+                        break;
+                    default:
+                        response = "ERR invalid command";
                         break;
                 }
+                out.println(String.format("%03d %s", response.length(), response));
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -149,5 +197,5 @@ public class Server{
                 e.printStackTrace();
             }
         }
-    }    
+    }
 }
